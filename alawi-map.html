@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>علاوي ماب</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--ink:#0E1513;--panel:#16201D;--line:#24332F;--mint:#3DDC97;--orange:#F28C28;--mist:#9DBFB1;--text:#F2F7F4;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--text);font-family:'Cairo',system-ui,sans-serif}
+[hidden]{display:none!important}
+#app{position:relative;height:100%;overflow:hidden}
+#map{position:absolute;inset:0;background:#101B18}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) saturate(.6) brightness(.85) contrast(.95)}
+.dot{width:22px;height:22px;border-radius:50%;background:var(--mint);border:3px solid #fff;box-shadow:0 0 0 8px rgba(61,220,151,.25)}
+.pin{width:28px;height:28px;background:var(--orange);border:3px solid var(--ink);border-radius:50% 50% 50% 0;transform:rotate(-45deg)}
+#top{position:absolute;z-index:1200;inset:0 0 auto 0;padding:12px;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:560px;margin:0 auto}
+#top>*{pointer-events:auto}
+#bar{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:8px 12px}
+#bar:focus-within{border-color:var(--mint)}
+#q{flex:1;min-width:0;background:none;border:0;color:var(--text);font:inherit;font-size:17px;outline:none}
+#q::placeholder{color:var(--mist)}
+#x{background:none;border:0;color:var(--mist);font-size:26px;line-height:1;width:44px;height:44px;border-radius:12px;cursor:pointer}
+button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+#list{list-style:none;margin:0;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:18px;max-height:45vh;overflow:auto}
+#list button{width:100%;text-align:start;background:none;border:0;color:var(--text);font:inherit;font-size:15px;padding:12px;border-radius:12px;min-height:44px;cursor:pointer}
+#list button:hover{background:#1E2D29}
+#list .empty{padding:12px;color:var(--mist)}
+#turn{display:flex;align-items:center;gap:14px;background:var(--mint);color:var(--ink);border-radius:18px;padding:12px 16px}
+#arrow{font-size:30px;line-height:1;font-weight:800;min-width:34px;text-align:center}
+#tt{display:block;font-size:19px;font-weight:800;line-height:1.3}
+#td{font-size:15px}
+#bottom{position:absolute;z-index:1200;inset:auto 0 0 0;padding:12px;display:flex;flex-direction:column;gap:8px;max-width:560px;margin:0 auto}
+.round{align-self:flex-end;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--mint);font-size:22px;cursor:pointer}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:16px;display:flex;align-items:center;gap:14px;margin:0}
+.info{flex:1;min-width:0}
+.info p{margin:0}
+#cn,#cd,.sub{color:var(--mist);font-size:14px}
+#ct{font-size:26px;font-weight:800;line-height:1.2}
+.btn{min-height:48px;padding:0 22px;border-radius:14px;border:0;background:var(--mint);color:var(--ink);font:inherit;font-weight:800;font-size:17px;cursor:pointer}
+.btn.alt{background:#24332F;color:var(--text);padding:0 14px}
+#hint{display:block;font-size:16px;line-height:1.6}
+.attr{margin:0;text-align:center;font-size:11px;color:var(--mist)}
+.attr a{color:var(--mist)}
+#toast{position:absolute;z-index:1300;top:84px;left:50%;transform:translateX(-50%);background:#fff;color:var(--ink);padding:10px 16px;border-radius:12px;font-weight:700;max-width:90%;text-align:center}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="map"></div>
+<div id="top">
+<div id="bar">
+<svg viewBox="0 0 200 200" width="34" height="34" aria-hidden="true"><rect width="200" height="200" rx="56" fill="#3DDC97"/><g transform="translate(50 40)"><path d="M50 6 a36 36 0 0 1 36 36 c0 28 -36 66 -36 66 c0 0 -36 -38 -36 -66 a36 36 0 0 1 36 -36 z" fill="#0E1513"/><circle cx="50" cy="42" r="13" fill="#3DDC97"/></g></svg>
+<input id="q" type="search" placeholder="وين تريد تروح؟" aria-label="ابحث عن وجهة" autocomplete="off" enterkeyhint="search">
+<button id="x" type="button" hidden aria-label="مسح الوجهة">×</button>
+</div>
+<ul id="list" hidden></ul>
+<div id="turn" hidden><span id="arrow" aria-hidden="true"></span><div><b id="tt"></b><span id="td"></span></div></div>
+</div>
+<div id="toast" hidden role="status"></div>
+<div id="bottom">
+<button id="loc" class="round" type="button" aria-label="موقعي">◎</button>
+<p id="hint" class="card"><span>اكتب وجهتك بالبحث، أو اضغط على أي نقطة بالخريطة.</span></p>
+<div id="card" class="card" hidden>
+<div class="info"><p id="cn"></p><p id="ct"></p><p id="cd"></p></div>
+<button id="mute" class="btn alt" type="button" hidden>الصوت: شغال</button>
+<button id="go" class="btn" type="button">ابدأ</button>
+</div>
+<p class="attr"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© مساهمو OpenStreetMap</a></p>
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const map=L.map('map',{zoomControl:false,attributionControl:false}).setView([33.3152,44.3661],12);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+const MOD={right:'انعطف يمين',left:'انعطف يسار','slight right':'انعطف قليلاً يمين','slight left':'انعطف قليلاً يسار','sharp right':'انعطف بحدة يمين','sharp left':'انعطف بحدة يسار',straight:'استمر مستقيم',uturn:'ارجع بالاتجاه المعاكس'};
+const ARW={right:'↱','slight right':'↱','sharp right':'↱',left:'↰','slight left':'↰','sharp left':'↰',straight:'↑',uturn:'↶'};
+let me=null,dest=null,destName='',route=null,meM=null,destM=null,routeL=null,watchId=null,nav=false,arrived=false,idx=0,spoken=-1,muted=false,pending=null,lastReroute=0;
+const fmtD=m=>m>=1000?(m/1000).toFixed(1)+' كم':Math.max(10,Math.round(m/10)*10)+' م';
+const fmtT=s=>{const m=Math.max(1,Math.round(s/60));return m<60?m+' دقيقة':Math.floor(m/60)+' ساعة و'+(m%60)+' دقيقة'};
+function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,3500)}
+function say(t){if(muted||!('speechSynthesis' in window))return;const u=new SpeechSynthesisUtterance(t);u.lang='ar';speechSynthesis.cancel();speechSynthesis.speak(u)}
+function instr(s){const m=s.maneuver,t=m.type;if(t==='arrive')return'وصلت وجهتك';if(t==='depart')return'ابدأ السير'+(s.name?' على '+s.name:'');const a=(t==='roundabout'||t==='rotary')?'ادخل الدوّار':(MOD[m.modifier]||'استمر');return a+(s.name?' إلى '+s.name:'')}
+function setMe(lat,lng){me=L.latLng(lat,lng);if(!meM)meM=L.marker(me,{icon:L.divIcon({className:'',html:'<div class="dot"></div>',iconSize:[22,22]}),interactive:false}).addTo(map);else meM.setLatLng(me)}
+function locate(){if(!navigator.geolocation){toast('المتصفح ما يدعم الموقع');return}
+navigator.geolocation.getCurrentPosition(p=>{const first=!me;setMe(p.coords.latitude,p.coords.longitude);if(!pending)map.setView(me,15);if(pending){const[l,n]=pending;pending=null;setDest(l,n)}},()=>toast('اسمح للموقع، ولازم الصفحة تكون على رابط https'),{enableHighAccuracy:true,timeout:15000})}
+async function fetchRoute(a,b){try{const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson&steps=true`);const d=await r.json();if(d.code!=='Ok')return null;const rt=d.routes[0];
+return{coords:rt.geometry.coordinates.map(c=>[c[1],c[0]]),steps:rt.legs[0].steps.map(s=>({text:instr(s),mod:s.maneuver.modifier,dist:s.distance,loc:L.latLng(s.maneuver.location[1],s.maneuver.location[0])})),dist:rt.distance,dur:rt.duration}}catch(e){return null}}
+function draw(){if(routeL)routeL.remove();if(!route)return;routeL=L.layerGroup([L.polyline(route.coords,{color:'#0E1513',weight:12,opacity:.9}),L.polyline(route.coords,{color:'#3DDC97',weight:7})]).addTo(map)}
+async function setDest(l,name){stopNav();if(!me){pending=[l,name];toast('نجيب موقعك أول...');locate();return}
+dest=L.latLng(l);destName=name;$('#q').value=name;$('#list').hidden=true;
+if(!destM)destM=L.marker(dest,{icon:L.divIcon({className:'',html:'<div class="pin"></div>',iconSize:[28,28],iconAnchor:[8,26]}),interactive:false}).addTo(map);else destM.setLatLng(dest);
+route=await fetchRoute(me,dest);if(!route){toast('ما لكيت طريق لهذي الوجهة');clearAll();return}
+draw();map.fitBounds(L.latLngBounds(route.coords),{paddingTopLeft:[30,130],paddingBottomRight:[30,200]});render()}
+function clearAll(){stopNav();dest=null;route=null;if(routeL){routeL.remove();routeL=null}if(destM){destM.remove();destM=null}$('#q').value='';render()}
+function startNav(){if(!navigator.geolocation||!route)return;nav=true;arrived=false;idx=route.steps.length>1?1:0;spoken=-1;
+watchId=navigator.geolocation.watchPosition(onPos,()=>toast('ما كدرت أتتبع موقعك'),{enableHighAccuracy:true,maximumAge:2000});say('ابدأ السير');render()}
+function stopNav(){nav=false;if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}if('speechSynthesis' in window)speechSynthesis.cancel()}
+function onPos(p){setMe(p.coords.latitude,p.coords.longitude);if(!nav||!route)return;map.setView(me,17);
+while(idx<route.steps.length-1&&me.distanceTo(route.steps[idx].loc)<25)idx++;
+const s=route.steps[idx],d=me.distanceTo(s.loc);
+if(idx===route.steps.length-1&&d<30){arrived=true;nav=false;stopNav();say('وصلت وجهتك');render();return}
+if(spoken!==idx&&d<150){spoken=idx;say('بعد '+fmtD(d)+' '+s.text)}
+if(Date.now()-lastReroute>15000&&route.coords.every(c=>me.distanceTo(L.latLng(c))>80)){lastReroute=Date.now();toast('نعيد حساب الطريق...');fetchRoute(me,dest).then(r=>{if(r&&nav){route=r;idx=r.steps.length>1?1:0;spoken=-1;draw()}})}
+render()}
+function render(){const has=!!route;$('#x').hidden=!has&&!$('#q').value;$('#hint').hidden=has;$('#card').hidden=!has;const tb=$('#turn');if(!has){tb.hidden=true;return}
+$('#cn').textContent=destName;$('#mute').hidden=!nav;
+if(arrived){$('#ct').textContent='وصلت';$('#cd').textContent='وصلت وجهتك بالسلامة';$('#go').textContent='تمام';tb.hidden=false;$('#arrow').textContent='✓';$('#tt').textContent='وصلت وجهتك';$('#td').textContent=destName;return}
+let dist=route.dist,dur=route.dur;
+if(nav){const s=route.steps[idx],d=me.distanceTo(s.loc);dist=d+route.steps.slice(idx).reduce((a,x)=>a+x.dist,0);dur=dist/route.dist*route.dur;$('#arrow').textContent=ARW[s.mod]||'●';$('#tt').textContent=s.text;$('#td').textContent='بعد '+fmtD(d)}
+tb.hidden=!nav;$('#ct').textContent=fmtT(dur);$('#cd').textContent=fmtD(dist);$('#go').textContent=nav?'إيقاف':'ابدأ'}
+$('#go').addEventListener('click',()=>{if(arrived){clearAll();return}if(nav){stopNav();render();return}startNav()});
+$('#x').addEventListener('click',clearAll);
+$('#loc').addEventListener('click',()=>{if(me)map.setView(me,16);locate()});
+$('#mute').addEventListener('click',()=>{muted=!muted;$('#mute').textContent='الصوت: '+(muted?'مقفل':'شغال');if(muted&&'speechSynthesis' in window)speechSynthesis.cancel()});
+map.on('click',e=>setDest(e.latlng,'الوجهة المحددة'));
+const q=$('#q');
+async function search(){const v=q.value.trim();if(!v)return;const ul=$('#list');ul.innerHTML='';ul.hidden=false;
+let r=[];try{const res=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ar&q='+encodeURIComponent(v));r=await res.json()}catch(e){}
+r.forEach(x=>{const li=document.createElement('li'),b=document.createElement('button');b.type='button';b.textContent=x.display_name;b.addEventListener('click',()=>setDest({lat:+x.lat,lng:+x.lon},x.display_name.split('،')[0].split(',')[0]));li.appendChild(b);ul.appendChild(li)});
+if(!r.length){const li=document.createElement('li');li.className='empty';li.textContent='ما لكيت نتيجة، جرب اسم ثاني';ul.appendChild(li)}}
+q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();search();q.blur()}});
+q.addEventListener('input',()=>{$('#x').hidden=!q.value&&!route});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('#top'))$('#list').hidden=true});
+locate();render();
+})();
+</script>
+</body>
+</html>
